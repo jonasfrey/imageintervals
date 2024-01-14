@@ -100,6 +100,10 @@ let o_state = {
 }
 window.o_state = o_state
 
+let f_update_and_render_s_text_status = function(s){
+    o_state.s_text_status = s;
+    o_state.o_js__status?._f_update();
+}
 let f_recursive = function(){
     o_state.n_id_raf = requestAnimationFrame(f_recursive);
     let n_ms_wpn = window.performance.now();
@@ -133,17 +137,17 @@ let f_show_image_from_index = function(
         n_idx: o_state.n_idx, 
         n_len: o_state.a_o_entry.length
     }
-    o_state.s_text_status = new Function(
-        Object.keys(o_params),
-        `return \`${o_state.s_js__text_image}\``
-    )(
-        ...Object.values(
-            o_params
+    f_update_and_render_s_text_status(
+        new Function(
+            Object.keys(o_params),
+            `return \`${o_state.s_js__text_image}\``
+        )(
+            ...Object.values(
+                o_params
+            )
         )
-    );
-    console.log(o_state.s_text_status);
+    )
     o_state?.o_js__image?._f_render?.();
-    o_state?.o_js__status?._f_render?.();
 
 }
 let o = {
@@ -305,15 +309,27 @@ let o = {
                                                         "application/x-zip-compressed"
                                                     ].join(','),
                                                     onchange:async function(o_e){
-                                                        alert('file picked!');
+                                                        f_update_and_render_s_text_status(
+                                                            `file picked!`
+                                                        )
                                                         var o_file = o_e.target.files[0]; // Get the first file
                                                         if (o_file) {
-                                                            // Handle the file. Example: print the file name
-                                                            console.log("File chosen: ", o_file.name);
-                                
+                                                            // Handle the file. Example: print the file name                                                            
+
                                                             var o_reader = new FileReader();
                                                             o_state?.o_js__status?._f_update?.();
+                                                            let n  = 0;
+                                                            o_reader.onprogress = function(){
+                                                                n = (n+1)%3;
+                                                                // console.log(o_file)
+                                                                f_update_and_render_s_text_status(
+                                                                    `reading zip file ${o_file.name} ${(new Array(n).fill('.').join('')).padStart(' ', 3)}`
+                                                                );
+                                                            }
                                                             o_reader.onload = async function(o_e_fr) {
+                                                                f_update_and_render_s_text_status(
+                                                                    `zip file loaded`
+                                                                )
                                                                 try {                                                                    
                                                                     var o_abuffer = o_e_fr.target.result;
                                                                     var a_n_u8 = new Uint8Array(o_abuffer);
@@ -322,14 +338,18 @@ let o = {
                                                                     const o_zip_reader = new ZipReader(
                                                                         new Uint8ArrayReader(a_n_u8)
                                                                     );
+                                                                    o_state.a_s_url_image.map(s=>{
+                                                                        URL.revokeObjectURL(s_url)
+                                                                        return true
+                                                                    })
                                                                     o_state.a_o_entry = (await o_zip_reader.getEntries());
                                                                     o_state.a_s_url_image = [];
                                                                     o_state.n_idx = 0;
                                                                     for(let n_idx in o_state.a_o_entry){
                                                                         let o_entry = o_state.a_o_entry[n_idx];
-                                                                        let s = `loading image ${parseInt(n_idx)+1}/${o_state.a_o_entry.length}`
-                                                                        o_state.s_text_status = s;
-                                                                        o_state.o_js__status?._f_update();
+                                                                        f_update_and_render_s_text_status(
+                                                                            `loading image ${parseInt(n_idx)+1}/${o_state.a_o_entry.length}`
+                                                                        )
                                                                         console.log(o_entry);
                                                                         const a_n_u8_image = await o_entry.getData(
                                                                             new Uint8ArrayWriter()
@@ -347,13 +367,14 @@ let o = {
                                     
                                                                     await o_zip_reader.close();
                                     
-                                                                    o_state?.o_js__status?._f_render();
                                                                     o_state?.o_js__image?._f_render?.();
                                     
                                                                     // Further processing with uint8Array
                                                                 } catch (error) {
-                                                                    o_state.s_text_status = `could not load images from .zip, make sure the zip contains images only and is not all to big
-                                                                    error: ${error}`;
+                                                                    f_update_and_render_s_text_status(
+                                                                        `could not load images from .zip, make sure the zip contains images only and is not all to big
+                                                                        error: ${error}`
+                                                                    )
                                                                     o_state.o_js__status?._f_update();
                                                                 }
                                                             };
