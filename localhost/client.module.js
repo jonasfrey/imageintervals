@@ -305,6 +305,7 @@ let o = {
                                                         "application/x-zip-compressed"
                                                     ].join(','),
                                                     onchange:async function(o_e){
+                                                        alert('file picked!');
                                                         var o_file = o_e.target.files[0]; // Get the first file
                                                         if (o_file) {
                                                             // Handle the file. Example: print the file name
