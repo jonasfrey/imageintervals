@@ -86,7 +86,8 @@ function f_add_iamge_from_a_n_u8(uint8Array) {
 }
 
 let o_state = {
-    b_display_o_js__loading: true,
+    a_o_entry:[],
+    b_display_o_js__status: true,
     b_display_o_js__gui: true,
     a_s_url_image: [],
     n_idx: 0, 
@@ -94,6 +95,8 @@ let o_state = {
     n_id_raf: 0,
     n_ms_wpn_last: window.performance.now(), 
     b_recursive_running: false,
+    s_text_status: "please load a .zip file to load images", 
+    s_js__text_image: '${name}: ${n_idx+1}/${n_len}'
 }
 window.o_state = o_state
 
@@ -102,7 +105,9 @@ let f_recursive = function(){
     let n_ms_wpn = window.performance.now();
     if(Math.abs(n_ms_wpn-o_state.n_ms_wpn_last) > o_state.n_ms_interval){
         o_state.b_recursive_running = true;
-        o_state.n_idx = ((o_state.n_idx+1)%o_state.a_s_url_image.length)
+        f_show_image_from_index(
+            o_state.n_idx+1
+        )
         o_state?.o_js__image?._f_render?.();
         o_state.n_ms_wpn_last = n_ms_wpn
     }
@@ -115,14 +120,37 @@ let f_start = function(){
     o_state.n_id_raf = requestAnimationFrame(f_recursive);
     o_state.b_recursive_running = true;
 }
+let f_show_image_from_index = function(
+    n_idx, 
+){
+    
+    o_state.n_idx = n_idx % o_state.a_o_entry.length;
+    if(o_state.n_idx < 0){
+        o_state.n_idx = o_state.a_o_entry.length-1;
+    } 
+    let o_params = {
+        name: o_state.a_o_entry[n_idx].filename,
+        n_idx: o_state.n_idx, 
+        n_len: o_state.a_o_entry.length
+    }
+    o_state.s_text_status = new Function(
+        Object.keys(o_params),
+        `return \`${o_state.s_js__text_image}\``
+    )(
+        ...Object.values(
+            o_params
+        )
+    );
+    console.log(o_state.s_text_status);
+    o_state?.o_js__image?._f_render?.();
+    o_state?.o_js__status?._f_render?.();
+
+}
 let o = {
     f_o_jsh: ()=>{
         return {
             class: 'app',
             a_o:[
-                {
-                    innerText:  'hello_world', 
-                },
                 Object.assign(
                     o_state, 
                     {
@@ -137,6 +165,42 @@ let o = {
                         }
                     }
                 ).o_js__image,
+                Object.assign(
+                    o_state, 
+                    {
+                        o_js__b_show_image_name: {
+                            f_o_jsh: async ()=>{
+                                console.log(o_state.a_s_url_image[o_state.n_idx])
+                                return {
+                                    a_o: [
+                                        {
+                                            s_tag: "label", 
+                                            innerText: 'show image name'
+                                        }
+                                    ],
+                                    class: [
+                                        'clickable', 
+                                        (o_state.b_show_image_name) ? 'clicked' : false,
+                                    ].filter(v=>v).join(' '),
+                                }
+                            }
+                        }
+                    }
+                ).o_js__b_show_image_name,
+                Object.assign(
+                    o_state, 
+                    {
+                        o_js__status: {
+                            f_o_jsh: ()=>{
+                                return {
+                                    class:'status',
+                                    style: `display: ${(o_state.s_text_status?.trim() != '') ? 'block': 'none'}`,
+                                    innerText: o_state.s_text_status
+                                }
+                            }
+                        }
+                    }
+                ).o_js__status,
                 {
                     class: 'inputs', 
                     a_o: [
@@ -157,22 +221,32 @@ let o = {
                                             style: `display: ${(o_state.b_display_o_js__gui) ? 'block': 'none'}`,
                                             a_o:[
                                                 {
+                                                    s_tag: 'label', 
+                                                    innerText: "image info, (name, n_idx, n_len) are variables that can be used"
+                                                },
+                                                {
+                                                    s_tag: "input",
+                                                    value: o_state.s_js__text_image, 
+                                                    oninput: function(o_e){
+                                                        o_state.s_js__text_image = o_e.target.value
+                                                    }
+                                                },
+                                                {
                                                     class: "clickable", 
                                                     innerText: 'next >', 
                                                     onclick: ()=>{
-                                                        o_state.n_idx = ((o_state.n_idx+1)%o_state.a_s_url_image.length)
-                                                        o_state?.o_js__image?._f_render?.();
+                                                        f_show_image_from_index(
+                                                            o_state.n_idx+1
+                                                        )
                                                     }
                                                 },
                                                 {
                                                     class: "clickable", 
                                                     innerText: '< prev', 
                                                     onclick: ()=>{
-                                                        o_state.n_idx = ((o_state.n_idx-1))
-                                                        if(o_state.n_idx < 0){
-                                                            o_state.n_idx = o_state.a_s_url_image.length-1;
-                                                        }
-                                                        o_state?.o_js__image?._f_render?.();
+                                                        f_show_image_from_index(
+                                                            o_state.n_idx-1
+                                                        )
                                                     }
                                                 },
                                                 Object.assign(
@@ -220,20 +294,6 @@ let o = {
                                                         }
                                                     }
                                                 ).o_js__start_stop,
-                                                Object.assign(
-                                                    o_state, 
-                                                    {
-                                                        o_js__loading: {
-                                                            f_o_jsh: ()=>{
-                                                                return {
-                                                                    class:'loading',
-                                                                    style: `display: ${(o_state.b_display_o_js__loading) ? 'block': 'none'}`,
-                                                                    innerText: "loading, please wait..."
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                ).o_js__loading,
                                                 {
                                                     s_tag: 'input',
                                                     type: 'file', 
@@ -251,41 +311,50 @@ let o = {
                                                             console.log("File chosen: ", o_file.name);
                                 
                                                             var o_reader = new FileReader();
-                                                            o_state.b_display_o_js__loading = true;
-                                                            o_state?.o_js__loading?._f_update?.();
+                                                            o_state?.o_js__status?._f_update?.();
                                                             o_reader.onload = async function(o_e_fr) {
-                                                                var o_abuffer = o_e_fr.target.result;
-                                                                var a_n_u8 = new Uint8Array(o_abuffer);
-                                                                // console.log(a_n_u8);
-                                
-                                                                const o_zip_reader = new ZipReader(
-                                                                    new Uint8ArrayReader(a_n_u8)
-                                                                );
-                                                                let a_o_entry = (await o_zip_reader.getEntries());
-                                                                o_state.a_s_url_image = [];
-                                                                o_state.n_idx = 0;
-                                                                for(let o_entry of a_o_entry){
-                                                                    const a_n_u8_image = await o_entry.getData(
-                                                                        new Uint8ArrayWriter()
-                                                                    );
-                                                                    const o_blob = new Blob([a_n_u8_image], { type: 'image/jpeg' }); // Adjust the MIME type as necessary
-                                                                    // Create Object URL from Blob
-                                                                    let s_url = URL.createObjectURL(o_blob);
+                                                                try {                                                                    
+                                                                    var o_abuffer = o_e_fr.target.result;
+                                                                    var a_n_u8 = new Uint8Array(o_abuffer);
+                                                                    // console.log(a_n_u8);
                                     
-                                                                    o_state.a_s_url_image.push(s_url);
-                                
-                                                                    // console.log(v)
-                                                                    // f_add_iamge_from_a_n_u8(v);
+                                                                    const o_zip_reader = new ZipReader(
+                                                                        new Uint8ArrayReader(a_n_u8)
+                                                                    );
+                                                                    o_state.a_o_entry = (await o_zip_reader.getEntries());
+                                                                    o_state.a_s_url_image = [];
+                                                                    o_state.n_idx = 0;
+                                                                    for(let n_idx in o_state.a_o_entry){
+                                                                        let o_entry = o_state.a_o_entry[n_idx];
+                                                                        let s = `loading image ${parseInt(n_idx)+1}/${o_state.a_o_entry.length}`
+                                                                        o_state.s_text_status = s;
+                                                                        o_state.o_js__status?._f_update();
+                                                                        console.log(o_entry);
+                                                                        const a_n_u8_image = await o_entry.getData(
+                                                                            new Uint8ArrayWriter()
+                                                                        );
+                                                                        const o_blob = new Blob([a_n_u8_image], { type: 'image/jpeg' }); // Adjust the MIME type as necessary
+                                                                        // Create Object URL from Blob
+                                                                        let s_url = URL.createObjectURL(o_blob);
+                                        
+                                                                        o_state.a_s_url_image.push(s_url);
+                                    
+                                                                        // console.log(v)
+                                                                        // f_add_iamge_from_a_n_u8(v);
+                                                                    }
+                                    
+                                    
+                                                                    await o_zip_reader.close();
+                                    
+                                                                    o_state?.o_js__status?._f_render();
+                                                                    o_state?.o_js__image?._f_render?.();
+                                    
+                                                                    // Further processing with uint8Array
+                                                                } catch (error) {
+                                                                    o_state.s_text_status = `could not load images from .zip, make sure the zip contains images only and is not all to big
+                                                                    error: ${error}`;
+                                                                    o_state.o_js__status?._f_update();
                                                                 }
-                                
-                                
-                                                                await o_zip_reader.close();
-                                
-                                                                o_state.b_display_o_js__loading = false;
-                                                                o_state?.o_js__loading?._f_render();
-                                                                o_state?.o_js__image?._f_render?.();
-                                
-                                                                // Further processing with uint8Array
                                                             };
                                             
                                                             o_reader.readAsArrayBuffer(o_file);
@@ -333,11 +402,13 @@ f_add_css('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min
 // n_px_border_radius: number
 // s_border_style: string
 // n_nor_line_height_p: number
-// n_rem_margin_bottom_interactive_elements: number
+// n_rem_margin_bottom_interactive_elements: number]
+o_variables_css.n_rem_font_size_base = 1.1
 o_variables_css.n_rem_padding_interactive_elements = 0.5;
 let s_css_theme = f_s_css_from_o_variables(
     o_variables_css
 );
+
 let s_css = `
         ${s_css_theme}
         .app{
@@ -352,11 +423,12 @@ let s_css = `
             width:100%;
             height:100%;
         }
-        .loading{
+        .status{
             position:fixed;
-            left: 50%;
-            top:50%;
-            transform:translate(-50%,-50%);
+            right: 0;
+            bottom:0;
+            padding: 1rem;
+            background: rgba(0,0,0,0.2)
         }
         img{
             height: 100%; width: 100%; object-fit: contain
