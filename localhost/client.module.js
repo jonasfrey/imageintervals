@@ -1,4 +1,4 @@
-import {f_o_html__and_make_renderable} from "https://deno.land/x/f_o_html_from_o_js@2.1/mod.js";
+import {f_o_html__and_make_renderable} from "https://deno.land/x/f_o_html_from_o_js@2.4/mod.js";
 import {
     f_add_css,
     f_s_css_prefixed, 
@@ -96,7 +96,11 @@ let o_state = {
     n_ms_wpn_last: window.performance.now(), 
     b_recursive_running: false,
     s_text_status: "please load a .zip file to load images", 
-    s_js__text_image: '${name}: ${n_idx+1}/${n_len}'
+    s_js__text_image: '${name}: ${n_idx+1}/${n_len}', 
+    n_amp_zoom: 1.2,
+    n_ms_freq_zoom: 100000,
+    n_nor: 0,
+    n_nor_image_accumulated : 0,
 }
 window.o_state = o_state
 
@@ -104,14 +108,22 @@ let f_update_and_render_s_text_status = function(s){
     o_state.s_text_status = s;
     o_state.o_js__status?._f_update();
 }
-let f_recursive = function(){
+let f_recursive = async function(){
     o_state.n_id_raf = requestAnimationFrame(f_recursive);
     let n_ms_wpn = window.performance.now();
-    if(Math.abs(n_ms_wpn-o_state.n_ms_wpn_last) > o_state.n_ms_interval){
+    let n_ms_delta = Math.abs(n_ms_wpn-o_state.n_ms_wpn_last);
+    o_state.n_nor = n_ms_delta / o_state.n_ms_interval;
+    o_state.n_nor_image_accumulated = parseInt(o_state.n_nor_image_accumulated) + o_state.n_nor 
+    let n_amp_zoom = 1.1;
+
+    await o_state?.o_js__image?._f_update?.();
+
+    if( o_state.n_nor > 1.){
         o_state.b_recursive_running = true;
         f_show_image_from_index(
             o_state.n_idx+1
         )
+        o_state.n_nor_image_accumulated+=1;
         o_state?.o_js__image?._f_render?.();
         o_state.n_ms_wpn_last = n_ms_wpn
     }
@@ -147,7 +159,7 @@ let f_show_image_from_index = function(
             )
         )
     )
-    o_state?.o_js__image?._f_render?.();
+    // o_state?.o_js__image?._f_render?.();
 
 }
 let o = {
@@ -163,7 +175,23 @@ let o = {
                                 console.log(o_state.a_s_url_image[o_state.n_idx])
                                 return {
                                     s_tag: "img", 
-                                    src: o_state.a_s_url_image[o_state.n_idx]
+                                    src: o_state.a_s_url_image[o_state.n_idx], 
+                                    style: `transform: scale(${1+(Math.sin((window.performance.now()/o_state.n_ms_freq_zoom)*(Math.PI*2))*.5+.5)*0.3})`, 
+                                    onpointerdown: function(o_e){
+                                        var o_rect = o_e.target.getBoundingClientRect();
+                                        var n_x_nor = (o_e.clientX - o_rect.left)/o_rect.width; //x position within the element.
+                                        var n_y_nor = (o_e.clientY - o_rect.top)/o_rect.height;  //y position within the element.
+                                        console.log({n_x_nor, n_y_nor})
+                                        if(n_x_nor > .5){
+                                            f_show_image_from_index(
+                                                o_state.n_idx+1
+                                            )
+                                        }else{
+                                            f_show_image_from_index(
+                                                o_state.n_idx-1
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -198,7 +226,7 @@ let o = {
                             f_o_jsh: ()=>{
                                 return {
                                     class:'status',
-                                    style: `display: ${(o_state.s_text_status?.trim() != '') ? 'block': 'none'}`,
+                                    style: `display: ${(o_state.s_text_status?.trim?.() != '') ? 'block': 'none'}`,
                                     innerText: o_state.s_text_status
                                 }
                             }
@@ -224,6 +252,31 @@ let o = {
                                         return {
                                             style: `display: ${(o_state.b_display_o_js__gui) ? 'block': 'none'}`,
                                             a_o:[
+                                                Object.assign(
+                                                    o_state,
+                                                    {
+                                                        o_js__n_ms_freq_zoom: {
+                                                            f_o_jsh: ()=>{
+                                                                return {
+                                                                    innerText: `n_ms_freq_zoom: ${o_state.n_ms_freq_zoom}`, 
+
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                ).o_js__n_ms_freq_zoom,
+                                                {
+                                                    s_tag: "input",
+                                                    type: 'range', 
+                                                    style: "width: 100%",
+                                                    min: 100,
+                                                    max: 100000,
+                                                    value: o_state.n_ms_freq_zoom, 
+                                                    oninput: async function(o_e){
+                                                        o_state.n_ms_freq_zoom = o_e.target.value
+                                                        await o_state?.o_js__n_ms_freq_zoom?._f_update?.();
+                                                    }
+                                                },
                                                 {
                                                     s_tag: 'label', 
                                                     innerText: "image info, (name, n_idx, n_len) are variables that can be used"
@@ -268,9 +321,11 @@ let o = {
                                                 ).o_js__n_ms_interval,
                                                 {
                                                     s_tag: 'input', 
+                                                    class: 'clickable',
+                                                    style: "width: 100%",
                                                     type: "range", 
                                                     min: 100, 
-                                                    max: 5000,
+                                                    max: 20000,
                                                     value: o_state.n_ms_interval, 
                                                     oninput: function(o_e){
                                                         o_state.n_ms_interval = parseFloat(o_e.target.value)
@@ -339,7 +394,7 @@ let o = {
                                                                         new Uint8ArrayReader(a_n_u8)
                                                                     );
                                                                     o_state.a_s_url_image.map(s=>{
-                                                                        URL.revokeObjectURL(s_url)
+                                                                        URL.revokeObjectURL(s)
                                                                         return true
                                                                     })
                                                                     o_state.a_o_entry = (await o_zip_reader.getEntries());
@@ -443,7 +498,7 @@ let s_css = `
             top:0;
             left:0;
             width:100%;
-            height:100%;
+            height:auto;
         }
         .status{
             position:fixed;
@@ -453,6 +508,13 @@ let s_css = `
             background: rgba(0,0,0,0.2)
         }
         img{
+            -moz-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-user-drag: none;
+            user-drag: none;
+            -webkit-touch-callout: none;
             height: 100%; width: 100%; object-fit: contain
         }
 `;
